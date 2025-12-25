@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiaMe Partners | 組織診断ポータル</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Firebase SDKs (安定版の直接読み込み) -->
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f1f5f9; }
+        .brand-gradient { background: linear-gradient(135deg, #fb923c 0%, #db2777 100%); }
+        button { cursor: pointer !important; pointer-events: auto !important; }
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body class="min-h-screen pb-20">
+
+    <!-- ナビゲーション -->
+    <nav class="no-print brand-gradient text-white shadow-lg p-4 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-2 font-black text-xl">
+            <i class="fa-solid fa-gem"></i> DiaMe Partners
+        </div>
+        <div class="flex gap-2">
+            <button id="cloudBtn" onclick="handleCloudSave()" class="bg-white text-pink-600 px-4 py-2 rounded-full text-xs font-black shadow hover:bg-pink-50 transition flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up"></i> クラウド保存
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+        
+        <!-- 管理エリア -->
+        <div class="no-print grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white p-6 rounded-2xl shadow-sm md:col-span-3 border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-slate-700">管理企業</h2>
+                    <button onclick="addClient()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700">
+                        ＋ 企業を追加
+                    </button>
+                </div>
+                <div id="clientTabs" class="flex gap-2 flex-wrap"></div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="font-bold text-slate-700 mb-4 text-sm">ローカル保存 (推奨)</h2>
+                <div class="flex flex-col gap-2">
+                    <button onclick="exportJSON()" class="text-left p-3 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100">
+                        <i class="fa-solid fa-file-export mr-2 text-pink-500"></i> PCにバックアップ
+                    </button>
+                    <button onclick="importJSON()" class="text-left p-3 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100">
+                        <i class="fa-solid fa-file-import mr-2 text-blue-500"></i> ファイルから読込
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- メインレポート -->
+        <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-white">
+            <div class="p-8 bg-slate-50 border-b border-slate-200">
+                <div class="flex justify-between items-start">
+                    <input type="text" id="currentClientName" oninput="updateClientName(this.value)"
+                           class="text-3xl font-black text-slate-800 bg-transparent border-b-2 border-transparent focus:border-orange-400 outline-none w-full"
+                           placeholder="企業名を入力...">
+                    <button onclick="deleteClient()" class="no-print text-red-300 hover:text-red-500 p-2 transition">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-black text-slate-800 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-pink-500 rounded-full"></span> 診断メンバー
+                    </h3>
+                    <div class="flex gap-2">
+                        <button onclick="toggleConfig()" class="no-print bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition">
+                            項目を編集
+                        </button>
+                        <button onclick="addMember()" class="no-print bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">
+                            ＋ メンバー追加
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 項目編集エリア -->
+                <div id="configPanel" class="hidden mb-6 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="text-[10px] font-bold text-orange-600">評価項目の管理</p>
+                        <button onclick="addConfigAxis()" class="text-[10px] bg-white px-2 py-1 rounded border border-orange-200 font-bold">+ 新しい評価軸</button>
+                    </div>
+                    <div id="configItems" class="flex flex-wrap gap-2"></div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr id="tableHead" class="text-[10px] font-black text-slate-400 uppercase border-b border-slate-100 tracking-wider"></tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+
+                <div class="mt-10 p-6 bg-slate-50 rounded-2xl">
+                    <h4 class="font-bold text-slate-800 mb-2 text-sm">コンサルタント総評</h4>
+                    <textarea id="overallComment" oninput="updateComment(this.value)"
+                              class="w-full p-4 border border-slate-200 rounded-xl h-32 outline-none focus:ring-2 focus:ring-orange-200 transition-all bg-white"
+                              placeholder="この企業の全体的な傾向やアドバイスを入力してください..."></textarea>
+                </div>
+            </div>
+
+            <div class="p-8 text-center bg-slate-100 no-print border-t border-slate-200">
+                <button onclick="window.print()" class="bg-slate-800 text-white px-10 py-4 rounded-full font-black text-sm shadow-xl hover:bg-slate-700 transition transform hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-file-pdf mr-2"></i> レポートを印刷 / PDFで保存
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-xs font-bold opacity-0 transition-opacity pointer-events-none shadow-2xl z-[100]"></div>
+
+    <script>
+        // --- 状態管理 ---
+        let appState = {
+            clients: [{ name: "サンプル企業", config: ["心理的安全", "主体性", "コミュニケーション"], members: [], comment: "" }],
+            index: 0,
+            showConfig: false
+        };
+
+        // --- Firebase初期化 ---
+        let db, auth;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'diame-portal-v7';
+
+        function initFirebase() {
+            try {
+                if (!firebase.apps.length) {
+                    const config = JSON.parse(__firebase_config);
+                    firebase.initializeApp(config);
+                }
+                db = firebase.firestore();
+                auth = firebase.auth();
+                console.log("Firebase Ready");
+            } catch (e) {
+                console.error("Firebase Init Error:", e);
+            }
+        }
+
+        window.onload = () => {
+            initFirebase();
+            renderAll();
+        };
+
+        // --- 描画ロジック ---
+        function renderAll() {
+            const client = appState.clients[appState.index];
+            
+            const tabs = document.getElementById('clientTabs');
+            tabs.innerHTML = appState.clients.map((c, i) => `
+                <button onclick="switchClient(${i})" class="px-4 py-2 rounded-xl text-xs font-bold border transition-all ${i === appState.index ? 'bg-orange-500 text-white border-orange-600 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-orange-300'}">
+                    ${c.name || '未設定'}
+                </button>
+            `).join('');
+
+            document.getElementById('currentClientName').value = client.name;
+            document.getElementById('overallComment').value = client.comment;
+
+            const configPanel = document.getElementById('configPanel');
+            configPanel.className = appState.showConfig ? 'mb-6 p-4 bg-orange-50 rounded-2xl border border-orange-100 animate-fade-in' : 'hidden';
+            
+            const configItems = document.getElementById('configItems');
+            configItems.innerHTML = client.config.map((axis, i) => `
+                <div class="flex items-center gap-1 bg-white px-2 py-1 rounded border border-orange-200 shadow-sm">
+                    <input class="text-[10px] font-bold outline-none w-20 text-slate-700" value="${axis}" onchange="editAxis(${i}, this.value)">
+                    <button onclick="deleteAxis(${i})" class="text-red-400 hover:text-red-600 text-xs px-1">×</button>
+                </div>
+            `).join('');
+
+            renderTable();
+        }
+
+        function renderTable() {
+            const client = appState.clients[appState.index];
+            const head = document.getElementById('tableHead');
+            const body = document.getElementById('tableBody');
+
+            let headHtml = `<th class="py-4 px-2 w-40 text-slate-500">診断対象者</th>`;
+            client.config.forEach(c => headHtml += `<th class="py-4 px-2 text-slate-500">${c}</th>`);
+            headHtml += `<th class="py-4 px-2 text-slate-500">個別メモ</th><th class="py-4 px-2 no-print"></th>`;
+            head.innerHTML = headHtml;
+
+            body.innerHTML = client.members.map((m, mIdx) => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-4 px-2"><input class="w-full font-bold outline-none bg-transparent text-slate-800" value="${m.name}" onchange="updateMemberName(${mIdx}, this.value)"></td>
+                    ${client.config.map(axis => {
+                        const score = m.scores[axis] || "未選択";
+                        const colors = { "良好":"text-emerald-700 bg-emerald-50", "普通":"text-blue-700 bg-blue-50", "注意":"text-orange-700 bg-orange-50", "要対応":"text-red-700 bg-red-50", "未選択":"text-slate-400 bg-slate-50" };
+                        return `<td class="px-1">
+                            <select onchange="updateScore(${mIdx}, '${axis}', this.value)" class="text-[10px] font-bold p-2 rounded-lg outline-none w-full border-none appearance-none cursor-pointer ${colors[score] || colors["未選択"]}">
+                                ${["未選択","良好","普通","注意","要対応"].map(v => `<option ${v===score?'selected':''}>${v}</option>`).join('')}
+                            </select>
+                        </td>`;
+                    }).join('')}
+                    <td class="py-4 px-2"><input class="w-full text-xs text-slate-500 outline-none bg-transparent" value="${m.memo||''}" onchange="updateMemberMemo(${mIdx}, this.value)" placeholder="..."></td>
+                    <td class="py-4 px-2 no-print text-right"><button onclick="deleteMember(${mIdx})" class="text-slate-300 hover:text-red-500 transition"><i class="fa-solid fa-user-minus"></i></button></td>
+                </tr>
+            `).join('');
+        }
+
+        // --- アクション ---
+        function switchClient(i) { appState.index = i; renderAll(); }
+        function addClient() {
+            const n = prompt("新しい企業名を入力してください");
+            if(n) { appState.clients.push({ name: n, config: ["心理的安全","主体性"], members: [], comment: "" }); appState.index = appState.clients.length - 1; renderAll(); }
+        }
+        function deleteClient() {
+            if(confirm("この企業データを完全に削除しますか？")) { appState.clients.splice(appState.index, 1); if(appState.clients.length===0) appState.clients=[{name:"新規企業",config:["項目"],members:[],comment:""}]; appState.index=0; renderAll(); }
+        }
+        function updateClientName(v) { appState.clients[appState.index].name = v; document.getElementById('clientTabs').children[appState.index].innerText = v || '未設定'; }
+        function updateComment(v) { appState.clients[appState.index].comment = v; }
+        function toggleConfig() { appState.showConfig = !appState.showConfig; renderAll(); }
+        function addConfigAxis() { appState.clients[appState.index].config.push("新規軸"); renderAll(); }
+        function editAxis(i, v) { appState.clients[appState.index].config[i] = v; renderTable(); }
+        function deleteAxis(i) { appState.clients[appState.index].config.splice(i, 1); renderAll(); }
+        function addMember() { appState.clients[appState.index].members.push({ name: "氏名", scores: {}, memo: "" }); renderTable(); }
+        function updateMemberName(i, v) { appState.clients[appState.index].members[i].name = v; }
+        function updateMemberMemo(i, v) { appState.clients[appState.index].members[i].memo = v; }
+        function updateScore(mIdx, axis, v) { appState.clients[appState.index].members[mIdx].scores[axis] = v; renderTable(); }
+        function deleteMember(i) { appState.clients[appState.index].members.splice(i, 1); renderTable(); }
+
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-xs font-bold transition-opacity shadow-2xl z-[100] ${isError ? 'bg-red-600' : 'bg-slate-800'}`;
+            t.style.opacity = 1;
+            setTimeout(() => t.style.opacity = 0, 3000);
+        }
+
+        function exportJSON() {
+            const blob = new Blob([JSON.stringify(appState.clients)], {type: 'application/json'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = `DiaMe_Backup_${new Date().toLocaleDateString()}.json`; a.click();
+            showToast("PCにファイルを保存しました");
+        }
+
+        function importJSON() {
+            const input = document.createElement('input'); input.type = 'file';
+            input.onchange = (e) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => { 
+                    try {
+                        appState.clients = JSON.parse(ev.target.result); 
+                        appState.index = 0; 
+                        renderAll(); 
+                        showToast("データの読み込みが完了しました");
+                    } catch(err) { showToast("読み込みに失敗しました", true); }
+                };
+                reader.readAsText(e.target.files[0]);
+            };
+            input.click();
+        }
+
+        // --- 同期機能 (Firebase用) ---
+        async function handleCloudSave() {
+            const btn = document.getElementById('cloudBtn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 保存中...`;
+            
+            try {
+                if (!auth) initFirebase();
+                
+                // 1. ログイン試行
+                let user = auth.currentUser;
+                if (!user) {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await auth.signInWithCustomToken(__initial_auth_token);
+                    } else {
+                        await auth.signInAnonymously();
+                    }
+                    user = auth.currentUser;
+                }
+
+                if (!user) throw new Error("認証に失敗しました。");
+
+                // 2. 保存実行 (RULE 1遵守のパス)
+                const docPath = `artifacts/${appId}/users/${user.uid}/data/main`;
+                await db.doc(docPath).set({
+                    clients: appState.clients,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                showToast("クラウド同期が完了しました！");
+            } catch (err) {
+                console.error("Save Error:", err);
+                showToast("保存失敗: " + (err.code || "ネットワークエラー"), true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> クラウド保存`;
+            }
+        }
+    </script>
+</body>
+</html>
