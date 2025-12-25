@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiaMe Partners | 組織診断ポータル</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .brand-gradient { background: linear-gradient(135deg, #f97316 0%, #db2777 100%); }
+        .card { background: white; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border: 1px solid #e2e8f0; }
+        @media print { .no-print { display: none !important; } body { background: white; } .card { box-shadow: none; border: none; } }
+        select { appearance: none; -webkit-appearance: none; }
+    </style>
+</head>
+<body class="min-h-screen pb-20">
+
+    <!-- ナビゲーション -->
+    <nav class="no-print brand-gradient text-white shadow-lg p-4 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2 font-black text-xl tracking-tighter">
+                <i class="fa-solid fa-gem text-yellow-300"></i> DiaMe Partners
+            </div>
+            <div class="text-[10px] font-bold bg-white/20 px-3 py-1 rounded-full">組織診断クラウドポータル</div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
+        
+        <!-- 管理ツール -->
+        <div class="no-print grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="card p-6 md:col-span-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-slate-500 text-xs tracking-widest">クライアント管理</h2>
+                    <button id="addClientBtn" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition active:scale-95">
+                        <i class="fa-solid fa-plus mr-1"></i> 企業を追加
+                    </button>
+                </div>
+                <div id="clientTabs" class="flex gap-2 flex-wrap"></div>
+            </div>
+            <div class="card p-6">
+                <h2 class="font-bold text-slate-500 text-xs tracking-widest mb-4">データ操作</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="exportBtn" class="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 transition group">
+                        <i class="fa-solid fa-file-export text-orange-500 mb-1 group-hover:scale-110 transition"></i>
+                        <span class="text-[10px] font-bold">書き出し</span>
+                    </button>
+                    <button id="importBtn" class="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 transition group">
+                        <i class="fa-solid fa-file-import text-blue-500 mb-1 group-hover:scale-110 transition"></i>
+                        <span class="text-[10px] font-bold">読み込み</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- メイン診断シート -->
+        <div class="card overflow-hidden">
+            <!-- シートヘッダー -->
+            <div class="p-8 bg-slate-50 border-b border-slate-100">
+                <div class="flex flex-col md:flex-row justify-between items-start gap-4">
+                    <div class="flex-1 w-full">
+                        <label class="text-[10px] font-bold text-orange-600 block mb-1">CLENT NAME</label>
+                        <input type="text" id="currentClientName" 
+                               class="text-3xl font-black text-slate-800 bg-transparent border-b-2 border-transparent focus:border-pink-500 outline-none w-full pb-1 transition-all"
+                               placeholder="企業名を入力してください">
+                    </div>
+                    <button id="deleteClientBtn" class="no-print text-slate-300 hover:text-red-500 p-2 transition self-end">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- シートメイン -->
+            <div class="p-4 md:p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-black text-slate-800 flex items-center gap-2">
+                        <span class="w-1.5 h-6 brand-gradient rounded-full"></span> 診断メンバー一覧
+                    </h3>
+                    <div class="flex gap-2 no-print">
+                        <button id="toggleConfigBtn" class="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition">
+                            項目編集
+                        </button>
+                        <button id="addMemberBtn" class="bg-pink-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-pink-700 shadow-lg shadow-pink-200 transition active:scale-95">
+                            メンバー追加
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 項目設定パネル -->
+                <div id="configPanel" class="hidden mb-8 p-6 bg-slate-900 rounded-2xl text-white shadow-2xl animate-fade-in">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="text-xs font-bold text-slate-400">診断評価軸のカスタマイズ</p>
+                        <button id="addAxisBtn" class="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg text-xs font-bold transition">+ 評価軸を追加</button>
+                    </div>
+                    <div id="configItems" class="flex flex-wrap gap-3"></div>
+                </div>
+                
+                <!-- テーブル -->
+                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                    <table class="w-full text-left min-w-[800px]">
+                        <thead class="bg-slate-50">
+                            <tr id="tableHead" class="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100"></tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+
+                <!-- 総評エリア -->
+                <div class="mt-12">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i class="fa-solid fa-comment-dots text-pink-500"></i>
+                        <h4 class="font-bold text-slate-800 text-sm">コンサルタント総評</h4>
+                    </div>
+                    <textarea id="overallComment" 
+                              class="w-full p-6 border border-slate-200 rounded-2xl h-40 outline-none focus:ring-4 focus:ring-pink-50 transition-all bg-white text-slate-700 leading-relaxed"
+                              placeholder="組織全体の傾向や今後の課題、具体的なアドバイスを入力してください..."></textarea>
+                </div>
+            </div>
+
+            <!-- フッターアクション -->
+            <div class="p-8 text-center bg-slate-50 no-print border-t border-slate-100 flex flex-col items-center gap-3">
+                <button onclick="window.print()" class="brand-gradient text-white px-12 py-4 rounded-full font-black text-sm shadow-xl hover:shadow-2xl transition transform hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-file-pdf mr-2"></i> レポートを PDF保存 / 印刷
+                </button>
+                <p class="text-[10px] text-slate-400 font-bold">※PDF保存時は「送信先」を「PDFに保存」に変更してください</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-xs font-bold opacity-0 transition-all pointer-events-none shadow-2xl z-[100]"></div>
+
+    <script type="module">
+        // 状態管理
+        let appState = {
+            clients: JSON.parse(localStorage.getItem('diame_data')) || [
+                { name: "サンプル株式会社", config: ["心理的安全", "主体性", "貢献意欲", "関係の質"], members: [{name:"サンプル太郎", scores:{}, memo:""}], comment: "" }
+            ],
+            index: 0,
+            showConfig: false
+        };
+
+        const saveLocal = () => localStorage.setItem('diame_data', JSON.stringify(appState.clients));
+
+        const render = () => {
+            const client = appState.clients[appState.index];
+            
+            // タブの更新
+            const tabs = document.getElementById('clientTabs');
+            tabs.innerHTML = appState.clients.map((c, i) => `
+                <button data-idx="${i}" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold border transition-all ${i === appState.index ? 'bg-slate-800 text-white border-slate-800 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'}">
+                    ${c.name || '名称未設定'}
+                </button>
+            `).join('');
+
+            // 基本情報の更新
+            document.getElementById('currentClientName').value = client.name;
+            document.getElementById('overallComment').value = client.comment;
+            document.getElementById('configPanel').classList.toggle('hidden', !appState.showConfig);
+            
+            // 設定パネルの更新
+            document.getElementById('configItems').innerHTML = client.config.map((axis, i) => `
+                <div class="flex items-center gap-2 bg-white/10 px-3 py-2 rounded-xl border border-white/10 group">
+                    <input class="axis-input bg-transparent text-xs font-bold outline-none w-24 text-white" data-idx="${i}" value="${axis}">
+                    <button class="delete-axis-btn text-slate-500 hover:text-red-400 transition" data-idx="${i}"><i class="fa-solid fa-circle-xmark"></i></button>
+                </div>
+            `).join('');
+
+            renderTable();
+        };
+
+        const renderTable = () => {
+            const client = appState.clients[appState.index];
+            const head = document.getElementById('tableHead');
+            const body = document.getElementById('tableBody');
+
+            // ヘッダー作成
+            head.innerHTML = `<th class="py-5 px-6 w-48">氏名 / グループ</th>` + 
+                client.config.map(c => `<th class="py-5 px-2 text-center font-bold">${c}</th>`).join('') +
+                `<th class="py-5 px-4 w-64">個別メモ</th><th class="py-5 px-4 no-print w-10"></th>`;
+
+            // ボディ作成
+            body.innerHTML = client.members.map((m, mIdx) => `
+                <tr class="hover:bg-slate-50/50 transition">
+                    <td class="py-4 px-6">
+                        <input class="member-name-input w-full font-bold outline-none bg-transparent text-slate-800 focus:text-pink-600" data-idx="${mIdx}" value="${m.name}">
+                    </td>
+                    ${client.config.map(axis => {
+                        const score = m.scores[axis] || "未選択";
+                        const styles = {
+                            "良好": "bg-emerald-50 text-emerald-700 border-emerald-200",
+                            "普通": "bg-blue-50 text-blue-700 border-blue-200",
+                            "注意": "bg-orange-50 text-orange-700 border-orange-200",
+                            "要対応": "bg-red-50 text-red-700 border-red-200",
+                            "未選択": "bg-slate-50 text-slate-400 border-slate-100"
+                        };
+                        return `<td class="p-1">
+                            <select data-m-idx="${mIdx}" data-axis="${axis}" class="score-select text-[10px] font-black p-2.5 rounded-xl outline-none w-full border text-center cursor-pointer transition-all ${styles[score] || styles["未選択"]}">
+                                ${["未選択","良好","普通","注意","要対応"].map(v => `<option value="${v}" ${v===score?'selected':''}>${v}</option>`).join('')}
+                            </select>
+                        </td>`;
+                    }).join('')}
+                    <td class="py-4 px-4">
+                        <input class="member-memo-input w-full text-xs text-slate-500 outline-none bg-transparent italic" data-idx="${mIdx}" value="${m.memo||''}" placeholder="気付いた点など...">
+                    </td>
+                    <td class="py-4 px-4 no-print text-right">
+                        <button class="delete-member-btn text-slate-200 hover:text-red-500 transition" data-idx="${mIdx}"><i class="fa-solid fa-circle-minus"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        };
+
+        const showToast = (msg) => {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.className = "fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-xs font-bold transition-all shadow-2xl z-[100] opacity-100 bg-slate-800 text-white";
+            setTimeout(() => t.classList.replace('opacity-100', 'opacity-0'), 2000);
+        };
+
+        // イベントリスナー
+        document.body.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+
+            if (btn.id === 'addClientBtn') {
+                const name = prompt("新しい企業名を入力してください");
+                if (name) {
+                    appState.clients.push({ name, config: ["心理的安全", "主体性"], members: [], comment: "" });
+                    appState.index = appState.clients.length - 1;
+                    render();
+                    saveLocal();
+                }
+            }
+            if (btn.classList.contains('tab-btn')) {
+                appState.index = parseInt(btn.dataset.idx);
+                render();
+            }
+            if (btn.id === 'deleteClientBtn') {
+                if (confirm("このクライアントデータを完全に削除しますか？")) {
+                    appState.clients.splice(appState.index, 1);
+                    if (appState.clients.length === 0) appState.clients = [{ name: "名称未設定", config: ["心理的安全"], members: [], comment: "" }];
+                    appState.index = 0;
+                    render();
+                    saveLocal();
+                }
+            }
+            if (btn.id === 'toggleConfigBtn') {
+                appState.showConfig = !appState.showConfig;
+                render();
+            }
+            if (btn.id === 'addAxisBtn') {
+                appState.clients[appState.index].config.push("新しい項目");
+                render();
+                saveLocal();
+            }
+            if (btn.classList.contains('delete-axis-btn')) {
+                appState.clients[appState.index].config.splice(parseInt(btn.dataset.idx), 1);
+                render();
+                saveLocal();
+            }
+            if (btn.id === 'addMemberBtn') {
+                appState.clients[appState.index].members.push({ name: "新規メンバー", scores: {}, memo: "" });
+                renderTable();
+                saveLocal();
+            }
+            if (btn.classList.contains('delete-member-btn')) {
+                appState.clients[appState.index].members.splice(parseInt(btn.dataset.idx), 1);
+                renderTable();
+                saveLocal();
+            }
+            if (btn.id === 'exportBtn') {
+                const blob = new Blob([JSON.stringify(appState.clients)], {type: 'application/json'});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `DiaMe_Backup_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                showToast("データを書き出しました");
+            }
+            if (btn.id === 'importBtn') {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = (ev) => {
+                    const reader = new FileReader();
+                    reader.onload = (f) => {
+                        try {
+                            appState.clients = JSON.parse(f.target.result);
+                            appState.index = 0;
+                            render();
+                            saveLocal();
+                            showToast("データを読み込みました");
+                        } catch(e) { alert("無効なファイル形式です"); }
+                    };
+                    reader.readAsText(ev.target.files[0]);
+                };
+                input.click();
+            }
+        });
+
+        document.body.addEventListener('input', (e) => {
+            const client = appState.clients[appState.index];
+            if (e.target.id === 'currentClientName') {
+                client.name = e.target.value;
+                document.querySelector(`.tab-btn[data-idx="${appState.index}"]`).innerText = e.target.value || '名称未設定';
+            }
+            if (e.target.id === 'overallComment') client.comment = e.target.value;
+            if (e.target.classList.contains('axis-input')) client.config[parseInt(e.target.dataset.idx)] = e.target.value;
+            if (e.target.classList.contains('member-name-input')) client.members[parseInt(e.target.dataset.idx)].name = e.target.value;
+            if (e.target.classList.contains('member-memo-input')) client.members[parseInt(e.target.dataset.idx)].memo = e.target.value;
+            saveLocal();
+        });
+
+        document.body.addEventListener('change', (e) => {
+            if (e.target.classList.contains('score-select')) {
+                const mIdx = parseInt(e.target.dataset.mIdx);
+                const axis = e.target.dataset.axis;
+                appState.clients[appState.index].members[mIdx].scores[axis] = e.target.value;
+                renderTable();
+                saveLocal();
+            }
+        });
+
+        // 初期描画
+        render();
+    </script>
+</body>
+</html>
